@@ -38,13 +38,7 @@ export default function RootLayout({
         className="min-h-screen bg-gradient-background"
         suppressHydrationWarning
       >
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-          suppressHydrationWarning
-        >
+        <ThemeProvider defaultTheme="dark">
           <SolanaWalletProvider>{children}</SolanaWalletProvider>
           <Toaster />
         </ThemeProvider>
