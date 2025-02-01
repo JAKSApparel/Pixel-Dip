@@ -6,7 +6,7 @@ import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { useState, useEffect } from 'react';
-import { LAMPORTS_PER_SOL, Connection } from '@solana/web3.js';
+import { LAMPORTS_PER_SOL } from '@solana/web3.js';
 
 // Dynamically import the WalletMultiButton with SSR disabled
 const WalletMultiButton = dynamic(

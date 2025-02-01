@@ -1,4 +1,4 @@
-import { ArrowRight, Send } from 'lucide-react';
+import { Send } from 'lucide-react';
 
 export function MassTransferHero() {
   return (

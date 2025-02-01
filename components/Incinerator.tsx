@@ -5,7 +5,7 @@ import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { Connection, Transaction, PublicKey, LAMPORTS_PER_SOL, SystemProgram } from '@solana/web3.js';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { createBurnCheckedInstruction, getAssociatedTokenAddress, TOKEN_PROGRAM_ID, createCloseAccountInstruction, createTransferInstruction } from '@solana/spl-token';
-import { Flame, Coins, Trash2, ArrowRight } from 'lucide-react';
+import { Flame, Coins, Trash2 } from 'lucide-react';
 import { BurnType, TokenInfo, TokenAccount } from '@/types';
 import { getTokenInfo, getTokenAccounts } from '@/utils/token';
 import { useWalletOperations } from '@/hooks/useWalletOperations';
@@ -45,18 +45,24 @@ export const Incinerator: FC = () => {
         const tokenAccountInfo = await connection.getParsedAccountInfo(mintPubkey);
         
         if (tokenAccountInfo.value) {
-          const info = (tokenAccountInfo.value.data as any).parsed.info;
-          const supply = info.supply ? Number(info.supply) : undefined;
-          const isNFT = supply === 1 && info.decimals === 0;
+          const info = tokenAccountInfo.value.data as {
+            parsed: {
+              info: {
+                supply: string;
+                decimals: number;
+              };
+            };
+          };
+          const supply = info.parsed.info.supply ? Number(info.parsed.info.supply) : undefined;
+          const isNFT = supply === 1 && info.parsed.info.decimals === 0;
           
           setTokenInfo({
             mint: address,
-            decimals: info.decimals,
+            decimals: info.parsed.info.decimals,
             supply,
             isNFT
           });
 
-          // Auto-switch to NFT mode if detected
           if (isNFT) {
             setActionType('burn');
             setAmount('1');
@@ -333,7 +339,7 @@ export const Incinerator: FC = () => {
                       : 'bg-[#2A2D3A] text-gray-400 hover:bg-[#3A3D4A]'
                   }`}
                 >
-                  <ArrowRight className="w-6 h-6 mx-auto mb-2" />
+                  <Trash2 className="w-6 h-6 mx-auto mb-2" />
                   <span>Transfer Tokens</span>
                 </button>
                 <button
