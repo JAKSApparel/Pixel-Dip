@@ -11,6 +11,8 @@ import { getTokenInfo, getTokenAccounts } from '@/utils/token';
 import { useWalletOperations } from '@/hooks/useWalletOperations';
 import { toast } from 'sonner';
 import { TokenCard, TokenCardSkeleton } from '@/components/TokenCard';
+import { getCompressedNFTs } from '@/utils/nft';
+import { estimateRentRecovery, calculateTotalRentRecoverable } from '@/utils/rent';
 
 const BURN_FEE = 0.001; // 0.001 SOL
 
@@ -31,6 +33,8 @@ export const Incinerator: FC = () => {
   const [recipientAddress, setRecipientAddress] = useState('');
   const [isValidRecipient, setIsValidRecipient] = useState(false);
   const [isBurnAddress, setIsBurnAddress] = useState(false);
+  const [compressedNFTs, setCompressedNFTs] = useState<CompressedNFT[]>([]);
+  const [totalRentRecoverable, setTotalRentRecoverable] = useState<number>(0);
 
   const { handleBurnToken } = useWalletOperations();
 
@@ -245,28 +249,42 @@ export const Incinerator: FC = () => {
   };
 
   useEffect(() => {
-    async function fetchTokenAccounts() {
-      if (!publicKey) {
-        setTokenAccounts([]);
-        return;
-      }
-
+    const loadAssets = async () => {
+      if (!publicKey || !connection) return;
+      
       setIsLoadingTokens(true);
       try {
-        const tokens = await getTokenAccounts(connection, publicKey);
-        const enhancedTokens = await Promise.all(
-          tokens.map(token => getEnhancedTokenMetadata(connection, token))
-        );
-        setTokenAccounts(enhancedTokens);
+        // Load regular tokens and NFTs
+        const accounts = await getTokenAccounts(connection, publicKey);
+        setTokenAccounts(accounts);
+
+        // Load compressed NFTs with error handling
+        try {
+          const compressed = await getCompressedNFTs(connection, publicKey);
+          setCompressedNFTs(compressed);
+        } catch (nftError) {
+          console.warn('Failed to load compressed NFTs:', nftError);
+          // Don't fail the entire loading process for NFT errors
+          setCompressedNFTs([]);
+        }
+
+        // Calculate total rent recoverable
+        try {
+          const rentTotal = await calculateTotalRentRecoverable(connection, publicKey);
+          setTotalRentRecoverable(rentTotal);
+        } catch (rentError) {
+          console.warn('Failed to calculate rent:', rentError);
+          setTotalRentRecoverable(0);
+        }
       } catch (error) {
-        console.error('Error fetching token accounts:', error);
-        toast.error('Failed to load tokens');
+        console.error('Failed to load assets:', error);
+        toast.error('Failed to load some assets');
       } finally {
         setIsLoadingTokens(false);
       }
-    }
+    };
 
-    fetchTokenAccounts();
+    loadAssets();
   }, [publicKey, connection]);
 
   const handleTokenSelect = (token: EnhancedTokenMetadata) => {

@@ -6,6 +6,8 @@ import { Toaster } from "@/components/Toaster";
 import { Space_Grotesk } from 'next/font/google';
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
+import { Suspense } from 'react';
+import Loading from './loading';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -37,9 +39,11 @@ export default function RootLayout({
       <body className="min-h-screen bg-gradient-background flex flex-col" suppressHydrationWarning>
         <SolanaWalletProvider>
           <Header />
-          <main className="flex-grow pt-16">
-            {children}
-          </main>
+          <Suspense fallback={<Loading />}>
+            <main className="flex-grow pt-16">
+              {children}
+            </main>
+          </Suspense>
           <Footer />
         </SolanaWalletProvider>
         <Toaster />

@@ -22,6 +22,11 @@ const nextConfig = {
     config.externals.push('pino-pretty', 'lokijs', 'encoding');
     return config;
   },
+  // Add experimental features
+  experimental: {
+    optimizeCss: true,
+    scrollRestoration: true,
+  },
 };
 
 module.exports = nextConfig; 

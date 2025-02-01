@@ -7,6 +7,7 @@ import dynamic from 'next/dynamic';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { useState, useEffect } from 'react';
 import { LAMPORTS_PER_SOL } from '@solana/web3.js';
+import { usePathname } from 'next/navigation';
 
 // Dynamically import the WalletMultiButton with SSR disabled
 const WalletMultiButton = dynamic(
@@ -17,6 +18,7 @@ const WalletMultiButton = dynamic(
 export function Header() {
   const { publicKey } = useWallet();
   const { connection } = useConnection();
+  const pathname = usePathname();
   const [balance, setBalance] = useState<number | null>(null);
   const [visible, setVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
@@ -102,14 +104,18 @@ export function Header() {
           <nav className="hidden md:flex space-x-6">
             <Link 
               href="/" 
-              className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors"
+              className={`flex items-center space-x-2 transition-colors ${
+                pathname === '/' ? 'text-white' : 'text-gray-400 hover:text-white'
+              }`}
             >
               <Home className="w-4 h-4" />
               <span>Home</span>
             </Link>
             <Link 
               href="/airdrop" 
-              className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors"
+              className={`flex items-center space-x-2 transition-colors ${
+                pathname === '/airdrop' ? 'text-white' : 'text-gray-400 hover:text-white'
+              }`}
             >
               <Send className="w-4 h-4" />
               <span>Mass Transfer</span>
