@@ -7,7 +7,7 @@ import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { createBurnCheckedInstruction, getAssociatedTokenAddress, TOKEN_PROGRAM_ID, createCloseAccountInstruction, createTransferInstruction } from '@solana/spl-token';
 import { Flame, Coins, Trash2 } from 'lucide-react';
 import { BurnType, TokenInfo, TokenAccount } from '@/types';
-import { getTokenInfo, getTokenAccounts } from '@/utils/token';
+import { getTokenAccounts } from '@/utils/token';
 import { useWalletOperations } from '@/hooks/useWalletOperations';
 import { toast } from 'sonner';
 import { TokenCard, TokenCardSkeleton } from '@/components/TokenCard';
@@ -224,15 +224,16 @@ export const Incinerator: FC = () => {
 
         // Load compressed NFTs with error handling
         try {
-          const compressed = await getCompressedNFTs(connection, publicKey);
+          await getCompressedNFTs(connection, publicKey);
+          // Note: We're not storing the result since we removed the state
         } catch (nftError) {
           console.warn('Failed to load compressed NFTs:', nftError);
-          // Don't fail the entire loading process for NFT errors
         }
 
         // Calculate total rent recoverable
         try {
-          const rentTotal = await calculateTotalRentRecoverable(connection, publicKey);
+          await calculateTotalRentRecoverable(connection, publicKey);
+          // Note: We're not storing the result since we removed the state
         } catch (rentError) {
           console.warn('Failed to calculate rent:', rentError);
         }

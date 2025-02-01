@@ -6,6 +6,14 @@ const nextConfig = {
     // your project has ESLint errors.
     ignoreDuringBuilds: false,
   },
+  images: {
+    domains: [
+      'raw.githubusercontent.com',
+      'arweave.net',
+      'www.arweave.net',
+      'ipfs.io'
+    ],
+  },
   async headers() {
     return [
       {

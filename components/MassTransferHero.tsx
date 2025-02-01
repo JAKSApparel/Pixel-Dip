@@ -1,5 +1,4 @@
-import { Send } from 'lucide-react';
-import { MessageCircle } from 'lucide-react';
+import { Send, MessageCircle } from 'lucide-react';
 
 export function MassTransferHero() {
   return (
