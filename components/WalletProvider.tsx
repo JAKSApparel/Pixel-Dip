@@ -53,7 +53,7 @@ const WalletProviderComponent: FC<Props> = ({ children }) => {
   const wallets = useMemo(() => [new PhantomWalletAdapter()], []);
 
   // Handle wallet errors
-  const onError = useCallback((error: any) => {
+  const onError = useCallback((error: Error | null) => {
     if (error?.message?.includes('User rejected')) {
       // User cancelled - no need to show error
       return;

@@ -22,7 +22,6 @@ export function Header() {
   const [balance, setBalance] = useState<number | null>(null);
   const [visible, setVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
-  const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isIncreasing, setIsIncreasing] = useState<boolean | null>(null);
   const previousBalance = useRef<number | null>(null);
@@ -51,47 +50,32 @@ export function Header() {
 
     setIsLoading(true);
     try {
-      // Log connection and wallet details
-      console.log('Fetching balance for:', publicKey.toString());
-      console.log('Using RPC:', connection.rpcEndpoint);
+      // Get multiple confirmations of the balance
+      const [balance, confirmedBalance] = await Promise.all([
+        connection.getBalance(publicKey, 'finalized'),
+        connection.getBalance(publicKey, 'confirmed')
+      ]);
 
-      // Try to get account info first
-      const accountInfo = await connection.getAccountInfo(publicKey);
-      console.log('Account info:', accountInfo);
-
-      // Get balance with commitment
-      const newBalance = await connection.getBalance(publicKey, 'confirmed');
-      console.log('Raw balance:', newBalance);
-      const solBalance = newBalance / LAMPORTS_PER_SOL;
-      console.log('SOL balance:', solBalance);
+      // Use the most recent confirmed balance
+      const finalBalance = Math.max(balance, confirmedBalance) / LAMPORTS_PER_SOL;
       
-      // Determine if balance is increasing or decreasing
+      console.log({
+        address: publicKey.toString(),
+        finalizedBalance: balance / LAMPORTS_PER_SOL,
+        confirmedBalance: confirmedBalance / LAMPORTS_PER_SOL,
+        usingBalance: finalBalance
+      });
+
+      // Update state only if component is still mounted
       if (previousBalance.current !== null) {
-        const isInc = solBalance > previousBalance.current;
-        console.log('Balance change:', {
-          previous: previousBalance.current,
-          new: solBalance,
-          increasing: isInc
-        });
-        setIsIncreasing(isInc);
+        setIsIncreasing(finalBalance > previousBalance.current);
       }
-      previousBalance.current = solBalance;
-      
-      setBalance(solBalance);
+      previousBalance.current = finalBalance;
+      setBalance(finalBalance);
+
     } catch (error) {
       console.error('Failed to fetch balance:', error);
-      // Try alternative method
-      try {
-        const accounts = await connection.getParsedProgramAccounts(publicKey);
-        console.log('Alternative fetch - accounts:', accounts);
-        const total = accounts.reduce((sum, acc) => sum + (acc.account.lamports || 0), 0);
-        const solBalance = total / LAMPORTS_PER_SOL;
-        console.log('Alternative balance:', solBalance);
-        setBalance(solBalance);
-      } catch (backupError) {
-        console.error('Backup balance fetch failed:', backupError);
-        setBalance(null);
-      }
+      setBalance(null);
     } finally {
       setIsLoading(false);
       setTimeout(() => setIsIncreasing(null), 1000);
@@ -116,11 +100,34 @@ export function Header() {
     checkConnection();
   }, [connection]);
 
+  // Add network check and balance subscription
   useEffect(() => {
+    if (!connection || !publicKey) return;
+
     getBalance();
+
+    // Subscribe to account changes
+    const subscriptionId = connection.onAccountChange(
+      publicKey,
+      (accountInfo) => {
+        const newBalance = accountInfo.lamports / LAMPORTS_PER_SOL;
+        if (previousBalance.current !== null) {
+          setIsIncreasing(newBalance > previousBalance.current);
+        }
+        previousBalance.current = newBalance;
+        setBalance(newBalance);
+      },
+      'confirmed'
+    );
+
+    // Poll for balance changes as backup
     const intervalId = setInterval(getBalance, 20000);
-    return () => clearInterval(intervalId);
-  }, [getBalance]);
+
+    return () => {
+      connection.removeAccountChangeListener(subscriptionId);
+      clearInterval(intervalId);
+    };
+  }, [connection, publicKey, getBalance]);
 
   return (
     <header 

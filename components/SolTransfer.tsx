@@ -4,7 +4,6 @@ import { FC, useState, useCallback, useEffect } from 'react';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { Transaction, PublicKey, LAMPORTS_PER_SOL, SystemProgram, Commitment } from '@solana/web3.js';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
-import { Coins } from 'lucide-react';
 import { toast } from 'sonner';
 
 // Configuration
@@ -40,9 +39,9 @@ export const SolTransfer: FC = () => {
     }
   }, [connection, publicKey]);
 
-  const validateRecipientAddress = useCallback(async (address: string) => {
+  const validateRecipientAddress = useCallback(async (address: string): Promise<boolean> => {
     try {
-      const pubkey = new PublicKey(address);
+      new PublicKey(address);
       setIsValidRecipient(true);
       return true;
     } catch {

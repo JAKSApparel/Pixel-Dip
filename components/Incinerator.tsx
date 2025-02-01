@@ -32,9 +32,6 @@ export const Incinerator: FC = () => {
   const [isLoadingTokens, setIsLoadingTokens] = useState(false);
   const [recipientAddress, setRecipientAddress] = useState('');
   const [isValidRecipient, setIsValidRecipient] = useState(false);
-  const [isBurnAddress, setIsBurnAddress] = useState(false);
-  const [compressedNFTs, setCompressedNFTs] = useState<CompressedNFT[]>([]);
-  const [totalRentRecoverable, setTotalRentRecoverable] = useState<number>(0);
 
   const { handleBurnToken } = useWalletOperations();
 
@@ -228,20 +225,16 @@ export const Incinerator: FC = () => {
         // Load compressed NFTs with error handling
         try {
           const compressed = await getCompressedNFTs(connection, publicKey);
-          setCompressedNFTs(compressed);
         } catch (nftError) {
           console.warn('Failed to load compressed NFTs:', nftError);
           // Don't fail the entire loading process for NFT errors
-          setCompressedNFTs([]);
         }
 
         // Calculate total rent recoverable
         try {
           const rentTotal = await calculateTotalRentRecoverable(connection, publicKey);
-          setTotalRentRecoverable(rentTotal);
         } catch (rentError) {
           console.warn('Failed to calculate rent:', rentError);
-          setTotalRentRecoverable(0);
         }
       } catch (error) {
         console.error('Failed to load assets:', error);
