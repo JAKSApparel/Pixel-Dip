@@ -2,6 +2,8 @@ import { Incinerator } from "@/components/Incinerator";
 import { Features } from "@/components/Features";
 import { FAQ } from "@/components/FAQ";
 import { Header } from "@/components/Header";
+import { SolTransfer } from "@/components/SolTransfer";
+import { Cleanup } from "@/components/Cleanup";
 
 export default function Home() {
   return (
@@ -25,6 +27,8 @@ export default function Home() {
               <Incinerator />
             </div>
           </section>
+          <Cleanup />
+          <SolTransfer />
           <Features />
           <FAQ />
         </div>

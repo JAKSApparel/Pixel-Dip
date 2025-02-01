@@ -96,6 +96,10 @@ export default {
   					transform: "translate(0px, 0px) scale(1)",
   				},
   			},
+  			balanceChange: {
+  				'0%, 100%': { transform: 'scale(1)' },
+  				'50%': { transform: 'scale(1.1)' }
+  			}
   		},
   		animation: {
   			"accordion-down": "accordion-down 0.2s ease-out",
@@ -103,6 +107,7 @@ export default {
   			pulse: "pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",
   			blob: "blob 7s infinite",
   			'text-shimmer': 'text-shimmer 2.5s ease-out infinite alternate',
+  			balanceChange: 'balanceChange 0.3s ease-in-out'
   		},
   		fontFamily: {
   			'space-grotesk': ['var(--font-space-grotesk)', 'sans-serif'],
