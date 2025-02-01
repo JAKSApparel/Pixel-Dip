@@ -1,11 +1,11 @@
 'use client';
 
-import { FC, useState, useEffect } from 'react';
+import { FC, useState, useEffect, useCallback } from 'react';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
-import { Connection, Transaction, PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
+import { Connection, Transaction, PublicKey, LAMPORTS_PER_SOL, SystemProgram } from '@solana/web3.js';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
-import { createBurnCheckedInstruction, getAssociatedTokenAddress, TOKEN_PROGRAM_ID, createCloseAccountInstruction } from '@solana/spl-token';
-import { Flame, Coins, Trash2 } from 'lucide-react';
+import { createBurnCheckedInstruction, getAssociatedTokenAddress, TOKEN_PROGRAM_ID, createCloseAccountInstruction, createTransferInstruction } from '@solana/spl-token';
+import { Flame, Coins, Trash2, ArrowRight } from 'lucide-react';
 import { BurnType, TokenInfo, TokenAccount } from '@/types';
 import { getTokenInfo, getTokenAccounts } from '@/utils/token';
 import { useWalletOperations } from '@/hooks/useWalletOperations';
@@ -14,10 +14,12 @@ import { TokenCard, TokenCardSkeleton } from '@/components/TokenCard';
 
 const BURN_FEE = 0.001; // 0.001 SOL
 
+type ActionType = 'burn' | 'transfer' | 'sol';
+
 export const Incinerator: FC = () => {
   const { publicKey, sendTransaction } = useWallet();
   const { connection } = useConnection();
-  const [burnType, setBurnType] = useState<BurnType>('token');
+  const [actionType, setActionType] = useState<ActionType>('burn');
   const [amount, setAmount] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [tokenAddress, setTokenAddress] = useState<string>('');
@@ -26,6 +28,9 @@ export const Incinerator: FC = () => {
   const [showNFTs, setShowNFTs] = useState(false);
   const [showTokens, setShowTokens] = useState(true);
   const [isLoadingTokens, setIsLoadingTokens] = useState(false);
+  const [recipientAddress, setRecipientAddress] = useState('');
+  const [isValidRecipient, setIsValidRecipient] = useState(false);
+  const [isBurnAddress, setIsBurnAddress] = useState(false);
 
   const { handleBurnToken } = useWalletOperations();
 
@@ -53,7 +58,7 @@ export const Incinerator: FC = () => {
 
           // Auto-switch to NFT mode if detected
           if (isNFT) {
-            setBurnType('nft');
+            setActionType('burn');
             setAmount('1');
           }
         }
@@ -67,14 +72,14 @@ export const Incinerator: FC = () => {
   };
 
   const handleCleanup = async () => {
-    if (!publicKey || (!amount && burnType !== 'serum') || (!tokenAddress && burnType !== 'serum')) {
+    if (!publicKey || (!amount && actionType !== 'serum') || (!tokenAddress && actionType !== 'serum')) {
       toast.error('Please connect wallet and provide required information');
       return;
     }
     
     setLoading(true);
     try {
-      switch (burnType) {
+      switch (actionType) {
         case 'token':
         case 'nft': {
           const mintPubkey = new PublicKey(tokenAddress);
@@ -141,6 +146,98 @@ export const Incinerator: FC = () => {
     }
   };
 
+  const validateRecipientAddress = useCallback(async (address: string) => {
+    try {
+      const pubkey = new PublicKey(address);
+      setIsValidRecipient(true);
+      return true;
+    } catch {
+      setIsValidRecipient(false);
+      return false;
+    }
+  }, []);
+
+  const handleTransfer = async () => {
+    if (!publicKey || !amount || !tokenAddress || !recipientAddress) {
+      toast.error('Please provide all required information');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const recipientPubkey = new PublicKey(recipientAddress);
+      const mintPubkey = new PublicKey(tokenAddress);
+      const amountToSend = BigInt(Math.floor(parseFloat(amount) * Math.pow(10, tokenInfo?.decimals || 0)));
+      
+      const selectedToken = tokenAccounts.find(t => t.mint === tokenAddress);
+      if (!selectedToken) {
+        throw new Error('Token not found in wallet');
+      }
+
+      // Get or create recipient's associated token account
+      const recipientATA = await getAssociatedTokenAddress(mintPubkey, recipientPubkey);
+      
+      const transaction = new Transaction();
+
+      // Add transfer instruction
+      transaction.add(
+        createTransferInstruction(
+          selectedToken.tokenAccount,
+          recipientATA,
+          publicKey,
+          amountToSend
+        )
+      );
+
+      const signature = await sendTransaction(transaction, connection);
+      await connection.confirmTransaction(signature, 'confirmed');
+
+      toast.success(`Successfully transferred tokens! Signature: ${signature}`);
+      setAmount('');
+      setTokenAddress('');
+      setTokenInfo(null);
+      setRecipientAddress('');
+    } catch (error) {
+      console.error('Transfer failed:', error);
+      toast.error(error instanceof Error ? error.message : 'Transfer failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSolTransfer = async () => {
+    if (!publicKey || !amount || !recipientAddress) {
+      toast.error('Please provide amount and recipient address');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const recipientPubkey = new PublicKey(recipientAddress);
+      const lamports = Math.floor(parseFloat(amount) * LAMPORTS_PER_SOL);
+      
+      const transaction = new Transaction().add(
+        SystemProgram.transfer({
+          fromPubkey: publicKey,
+          toPubkey: recipientPubkey,
+          lamports,
+        })
+      );
+
+      const signature = await sendTransaction(transaction, connection);
+      await connection.confirmTransaction(signature, 'confirmed');
+
+      toast.success(`Successfully transferred ${amount} SOL! Signature: ${signature}`);
+      setAmount('');
+      setRecipientAddress('');
+    } catch (error) {
+      console.error('SOL transfer failed:', error);
+      toast.error(error instanceof Error ? error.message : 'Transfer failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     async function fetchTokenAccounts() {
       if (!publicKey) {
@@ -169,7 +266,7 @@ export const Incinerator: FC = () => {
   const handleTokenSelect = (token: EnhancedTokenMetadata) => {
     setTokenAddress(token.mint);
     setAmount(token.uiAmount.toString());
-    setBurnType(token.isNFT ? 'nft' : 'token');
+    setActionType(token.isNFT ? 'burn' : 'token');
     setTokenInfo({
       mint: token.mint,
       decimals: token.decimals,
@@ -203,7 +300,7 @@ export const Incinerator: FC = () => {
           <h2 className="text-4xl font-bold text-gradient font-space-grotesk mb-2">
             Soul Crusher
           </h2>
-          <p className="text-gray-400">Obliterate unwanted tokens, NFTs, and empty accounts into the void</p>
+          <p className="text-gray-400">Obliterate or transfer unwanted tokens</p>
         </div>
 
         <div className="space-y-6">
@@ -215,32 +312,47 @@ export const Incinerator: FC = () => {
           
           {publicKey && (
             <>
-              <div className="grid grid-cols-4 gap-2">
-                {[
-                  { type: 'token', icon: Flame, label: 'Tokens' },
-                  { type: 'nft', icon: Coins, label: 'NFTs' },
-                  { type: 'lp', icon: Coins, label: 'LP' },
-                  { type: 'serum', icon: Trash2, label: 'Serum' },
-                ].map(({ type, icon: Icon, label }) => (
-                  <button
-                    key={type}
-                    onClick={() => setBurnType(type as BurnType)}
-                    className={`p-3 rounded-lg flex flex-col items-center gap-2 transition-all ${
-                      burnType === type 
-                        ? 'bg-purple-600 text-white' 
-                        : 'bg-[#2A2D3A] text-gray-400 hover:bg-[#3A3D4A]'
-                    }`}
-                  >
-                    <Icon size={20} />
-                    <span className="text-sm">{label}</span>
-                  </button>
-                ))}
+              {/* Action Type Selection */}
+              <div className="flex gap-4 mb-6">
+                <button
+                  onClick={() => setActionType('burn')}
+                  className={`flex-1 p-4 rounded-xl transition-all ${
+                    actionType === 'burn' 
+                      ? 'bg-red-500/20 text-red-400 border border-red-500/30' 
+                      : 'bg-[#2A2D3A] text-gray-400 hover:bg-[#3A3D4A]'
+                  }`}
+                >
+                  <Flame className="w-6 h-6 mx-auto mb-2" />
+                  <span>Burn Tokens</span>
+                </button>
+                <button
+                  onClick={() => setActionType('transfer')}
+                  className={`flex-1 p-4 rounded-xl transition-all ${
+                    actionType === 'transfer' 
+                      ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30' 
+                      : 'bg-[#2A2D3A] text-gray-400 hover:bg-[#3A3D4A]'
+                  }`}
+                >
+                  <ArrowRight className="w-6 h-6 mx-auto mb-2" />
+                  <span>Transfer Tokens</span>
+                </button>
+                <button
+                  onClick={() => setActionType('sol')}
+                  className={`flex-1 p-4 rounded-xl transition-all ${
+                    actionType === 'sol' 
+                      ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' 
+                      : 'bg-[#2A2D3A] text-gray-400 hover:bg-[#3A3D4A]'
+                  }`}
+                >
+                  <Coins className="w-6 h-6 mx-auto mb-2" />
+                  <span>Transfer SOL</span>
+                </button>
               </div>
 
-              {burnType !== 'serum' && (
+              {actionType !== 'serum' && (
                 <div>
                   <label htmlFor="tokenAddress" className="block text-sm font-medium text-gray-300 mb-2">
-                    {burnType === 'lp' ? 'LP Token Address' : `${burnType.toUpperCase()} Address`}
+                    {actionType === 'lp' ? 'LP Token Address' : `${actionType.toUpperCase()} Address`}
                   </label>
                   <input
                     id="tokenAddress"
@@ -248,7 +360,7 @@ export const Incinerator: FC = () => {
                     value={tokenAddress}
                     onChange={(e) => handleTokenAddressChange(e.target.value)}
                     className="w-full p-3 bg-[#2A2D3A] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    placeholder={`Enter ${burnType.toUpperCase()} address`}
+                    placeholder={`Enter ${actionType.toUpperCase()} address`}
                   />
                   {tokenInfo && (
                     <p className="mt-2 text-sm text-green-400">
@@ -259,7 +371,7 @@ export const Incinerator: FC = () => {
                 </div>
               )}
 
-              {burnType !== 'serum' && burnType !== 'nft' && (
+              {actionType !== 'serum' && actionType !== 'nft' && (
                 <div>
                   <label htmlFor="amount" className="block text-sm font-medium text-gray-300 mb-2">
                     Amount to Burn
@@ -342,9 +454,107 @@ export const Incinerator: FC = () => {
                 <p>Fee: {BURN_FEE} SOL per transaction</p>
               </div>
 
+              {actionType === 'transfer' && (
+                <div>
+                  <div className="flex items-center gap-2 mb-4">
+                    <input
+                      type="checkbox"
+                      id="burnAddress"
+                      checked={isBurnAddress}
+                      onChange={(e) => {
+                        setIsBurnAddress(e.target.checked);
+                        if (e.target.checked) {
+                          setRecipientAddress(BURN_ADDRESSES.BLACK_HOLE.toString());
+                          setIsValidRecipient(true);
+                        } else {
+                          setRecipientAddress('');
+                          setIsValidRecipient(false);
+                        }
+                      }}
+                      className="rounded border-gray-700 bg-[#2A2D3A] text-purple-500 focus:ring-purple-500"
+                    />
+                    <label htmlFor="burnAddress" className="text-sm text-gray-300">
+                      Use burn address (permanently destroys tokens)
+                    </label>
+                  </div>
+                  
+                  {!isBurnAddress && (
+                    <div>
+                      <label htmlFor="recipientAddress" className="block text-sm font-medium text-gray-300 mb-2">
+                        Recipient Wallet Address
+                      </label>
+                      <input
+                        id="recipientAddress"
+                        type="text"
+                        value={recipientAddress}
+                        onChange={(e) => {
+                          setRecipientAddress(e.target.value);
+                          validateRecipientAddress(e.target.value);
+                        }}
+                        className="w-full p-3 bg-[#2A2D3A] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        placeholder="Enter recipient's Solana address"
+                      />
+                      {recipientAddress && (
+                        <p className={`mt-2 text-sm ${isValidRecipient ? 'text-green-400' : 'text-red-400'}`}>
+                          {isValidRecipient ? '✓ Valid address' : '✗ Invalid address'}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {actionType === 'sol' && (
+                <>
+                  <div>
+                    <label htmlFor="amount" className="block text-sm font-medium text-gray-300 mb-2">
+                      Amount (SOL)
+                    </label>
+                    <input
+                      id="amount"
+                      type="number"
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value)}
+                      className="w-full p-3 bg-[#2A2D3A] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      placeholder="Enter SOL amount"
+                      min="0"
+                      step="any"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="recipientAddress" className="block text-sm font-medium text-gray-300 mb-2">
+                      Recipient Wallet Address
+                    </label>
+                    <input
+                      id="recipientAddress"
+                      type="text"
+                      value={recipientAddress}
+                      onChange={(e) => {
+                        setRecipientAddress(e.target.value);
+                        validateRecipientAddress(e.target.value);
+                      }}
+                      className="w-full p-3 bg-[#2A2D3A] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      placeholder="Enter recipient's Solana address"
+                    />
+                    {recipientAddress && (
+                      <p className={`mt-2 text-sm ${isValidRecipient ? 'text-green-400' : 'text-red-400'}`}>
+                        {isValidRecipient ? '✓ Valid address' : '✗ Invalid address'}
+                      </p>
+                    )}
+                  </div>
+                </>
+              )}
+
               <button
-                onClick={handleCleanup}
-                disabled={loading || !amount || !tokenAddress}
+                onClick={
+                  actionType === 'burn' 
+                    ? handleCleanup 
+                    : actionType === 'sol' 
+                      ? handleSolTransfer 
+                      : handleTransfer
+                }
+                disabled={loading || !amount || (actionType !== 'sol' && !tokenAddress) || (actionType !== 'burn' && !isValidRecipient)}
                 className="w-full mt-4 py-3 px-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-medium 
                   hover:from-purple-700 hover:to-pink-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200
                   animate-glow font-space-grotesk"
@@ -358,7 +568,9 @@ export const Incinerator: FC = () => {
                     Processing...
                   </span>
                 ) : (
-                  `Burn ${amount} ${tokenInfo?.isNFT ? 'NFT' : 'tokens'} (${BURN_FEE} SOL)`
+                  actionType === 'sol' 
+                    ? `Send ${amount} SOL`
+                    : `${actionType === 'burn' ? 'Burn' : 'Transfer'} ${amount} ${tokenInfo?.isNFT ? 'NFT' : 'tokens'}`
                 )}
               </button>
             </>

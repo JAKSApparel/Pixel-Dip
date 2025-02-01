@@ -2,9 +2,10 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { SolanaWalletProvider } from '@/components/WalletProvider';
-import { ThemeProvider } from '@/components/ThemeProvider';
 import { Toaster } from "@/components/Toaster";
 import { Space_Grotesk } from 'next/font/google';
+import { Header } from "@/components/Header";
+import { Footer } from "@/components/Footer";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -22,26 +23,26 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "Sol Crusher",
-  description: "Clean up your Solana wallet",
+  title: "SolCrush | Your Solana Companion",
+  description: "Clean up and manage your Solana assets with ease",
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
-    <html lang="en" suppressHydrationWarning className={`${geistSans.variable} ${geistMono.variable} ${spaceGrotesk.variable} antialiased`}>
-      <head />
-      <body 
-        className="min-h-screen bg-gradient-background"
-        suppressHydrationWarning
-      >
-        <ThemeProvider defaultTheme="dark">
-          <SolanaWalletProvider>{children}</SolanaWalletProvider>
-          <Toaster />
-        </ThemeProvider>
+    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} ${spaceGrotesk.variable} antialiased dark`}>
+      <body className="min-h-screen bg-gradient-background flex flex-col" suppressHydrationWarning>
+        <SolanaWalletProvider>
+          <Header />
+          <main className="flex-grow pt-16">
+            {children}
+          </main>
+          <Footer />
+        </SolanaWalletProvider>
+        <Toaster />
       </body>
     </html>
   );

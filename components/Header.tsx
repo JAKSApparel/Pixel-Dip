@@ -1,7 +1,6 @@
 'use client';
 
-import { ThemeToggle } from '@/components/ThemeToggle';
-import { MessageCircle } from 'lucide-react';
+import { MessageCircle, Home, Send } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
@@ -95,9 +94,28 @@ export function Header() {
       }`}
     >
       <div className="container flex h-full items-center justify-between">
-        <Link href="/" className="flex items-center space-x-2">
-          <span className="font-bold text-lg">Sol Crusher</span>
-        </Link>
+        <div className="flex items-center space-x-8">
+          <Link href="/" className="flex items-center space-x-2">
+            <span className="font-bold text-xl font-space-grotesk text-gradient">SolCrush</span>
+          </Link>
+          
+          <nav className="hidden md:flex space-x-6">
+            <Link 
+              href="/" 
+              className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors"
+            >
+              <Home className="w-4 h-4" />
+              <span>Home</span>
+            </Link>
+            <Link 
+              href="/airdrop" 
+              className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors"
+            >
+              <Send className="w-4 h-4" />
+              <span>Mass Transfer</span>
+            </Link>
+          </nav>
+        </div>
         <div className="flex items-center gap-6">
           {balance !== null && !error && (
             <div className="flex items-center gap-2 bg-background/40 px-3 py-1.5 rounded-full backdrop-blur-sm">
@@ -121,7 +139,6 @@ export function Header() {
           >
             <MessageCircle className="h-5 w-5" />
           </Link>
-          <ThemeToggle />
         </div>
       </div>
     </header>

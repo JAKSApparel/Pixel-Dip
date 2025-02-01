@@ -2,7 +2,6 @@ import { Incinerator } from "@/components/Incinerator";
 import { Features } from "@/components/Features";
 import { FAQ } from "@/components/FAQ";
 import { Header } from "@/components/Header";
-import { Footer } from "@/components/Footer";
 
 export default function Home() {
   return (
@@ -29,7 +28,6 @@ export default function Home() {
           <Features />
           <FAQ />
         </div>
-        <Footer />
       </main>
     </>
   );
